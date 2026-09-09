@@ -64,6 +64,9 @@ logs/
 .env.*.local
 !.env.example
 
+# GitHub Workflows (requires specific workflow scope)
+.github/
+
 # IDE & OS
 .vscode/
 .idea/
