@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # 1. PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexus_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgrespassword
+      POSTGRES_DB: research_system
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Redis Broker & Cache
+  redis:
+    image: redis:7-alpine
+    container_name: nexus_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 3. Backend FastAPI API Gateway & LangGraph Swarm
+  backend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: nexus_backend
+    restart: always
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@postgres:5432/research_system
+      - REDIS_URL=redis://redis:6379/0
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - backend_uploads:/app/uploads
+      - backend_exports:/app/exports
+      - backend_chroma:/app/chroma_db
+
+  # 4. Celery Distributed Worker Swarm
+  celery_worker:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.backend
+    container_name: nexus_celery_worker
+    restart: always
+    command: celery -A backend.workers.celery_app.celery_app worker --loglevel=info -c 4
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgrespassword@postgres:5432/research_system
+      - REDIS_URL=redis://redis:6379/0
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - TAVILY_API_KEY=${TAVILY_API_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # 5. Frontend React 19 Client
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    container_name: nexus_frontend
+    restart: always
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
+
+  # 6. Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nexus_nginx
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:
+  backend_exports:
+  backend_chroma:
