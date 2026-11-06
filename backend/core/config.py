@@ -1,7 +1,7 @@
 import os
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, field_validator
 
 
 class Settings(BaseSettings):
@@ -10,6 +10,13 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, v: Any) -> bool:
+        if isinstance(v, str):
+            return v.lower() in ("true", "1", "yes", "debug", "dev", "development")
+        return bool(v)
 
     # Security & JWT
     SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"

@@ -397,7 +397,28 @@ class SimulationProvider(BaseLLMProvider):
                 ]
             }, indent=2)
 
-        # 5. Citation Agent
+        # 5. Report Writer Agent
+        if "10-section" in prompt_lower or "report writer" in sys_lower or "research report" in prompt_lower or "dossier" in prompt_lower:
+            topic = "Research Topic"
+            for line in prompt.split("\n"):
+                if "topic:" in line.lower():
+                    topic = line.split(":", 1)[1].strip()
+                    break
+            from backend.agents.report_writer import generate_structured_fallback_report
+            return generate_structured_fallback_report(
+                topic=topic,
+                language="English",
+                analysis={"key_findings": [
+                    f"Rapid structural transformation in {topic} driven by cutting-edge innovations.",
+                    "Demonstrated 4.2x operational throughput scaling across verified enterprise pilots.",
+                    "Global capital allocation exceeding $48.5B with high CAGR across key international hubs.",
+                    "Regulatory standards standardizing around safety benchmarks and algorithmic governance."
+                ]},
+                sources=[{"domain": "nature.com"}, {"domain": "ieee.org"}],
+                confidence=96.0
+            )
+
+        # 6. Citation Agent
         if "citation" in prompt_lower or "bibliography" in prompt_lower:
             return json.dumps({
                 "formatted_citations": [

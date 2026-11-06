@@ -2,6 +2,7 @@ fastapi>=0.111.0
 uvicorn[standard]>=0.30.0
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
+email-validator>=2.0.0
 
 # LangGraph & LangChain Ecosystem
 langgraph>=0.2.0
@@ -19,7 +20,8 @@ chromadb>=0.5.0
 beautifulsoup4>=4.12.3
 
 # Database & Async ORM
-sqlalchemy>=2.0.30
+sqlalchemy[asyncio]>=2.0.30
+greenlet>=3.0.0
 alembic>=1.13.1
 asyncpg>=0.29.0
 aiosqlite>=0.20.0
